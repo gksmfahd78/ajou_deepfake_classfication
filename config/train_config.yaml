@@ -1,0 +1,136 @@
+# 딥페이크 탐지 모델 학습 설정
+
+# YOLO 얼굴 탐지 모델 설정
+yolo:
+  model_size: 'n'  # n, s, m, l, x
+  epochs: 100
+  batch_size: 16
+  imgsz: 640
+  device: 'auto'  # auto, cpu, 0, 1, ...
+  data_path: 'data/face_detection'
+  save_dir: 'runs/face_detection'
+  pretrained: true
+  confidence_threshold: 0.5
+  
+  # 학습 파라미터
+  optimizer: 'AdamW'
+  lr0: 0.01  # 초기 학습률
+  weight_decay: 0.0005
+  momentum: 0.937
+  
+  # 데이터 증강
+  augment:
+    hsv_h: 0.015  # 색조 증강
+    hsv_s: 0.7    # 채도 증강
+    hsv_v: 0.4    # 명도 증강
+    degrees: 0.0  # 회전 각도
+    translate: 0.1  # 이동
+    scale: 0.5    # 스케일
+    shear: 0.0    # 전단
+    perspective: 0.0  # 원근
+    flipud: 0.0   # 상하 뒤집기
+    fliplr: 0.5   # 좌우 뒤집기
+    mosaic: 1.0   # 모자이크 증강
+
+# EfficientNet 딥페이크 분류 모델 설정
+deepfake_classifier:
+  model_name: 'efficientnet-b0'  # b0~b7
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  device: 'auto'
+  data_path: 'data/deepfake_classification'
+  save_dir: 'runs/deepfake_classifier'
+  
+  # 데이터 증강
+  augment: true
+  augment_params:
+    resize: [256, 256]
+    crop_size: 224
+    horizontal_flip: 0.5
+    rotation_degrees: 10
+    color_jitter:
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.2
+      hue: 0.1
+  
+  # 옵티마이저 설정
+  optimizer: 'AdamW'
+  scheduler:
+    type: 'ReduceLROnPlateau'
+    mode: 'min'
+    factor: 0.5
+    patience: 5
+    min_lr: 0.00001
+  
+  # 조기 종료
+  early_stopping:
+    patience: 10
+    min_delta: 0.001
+
+# 데이터 설정
+data:
+  # 데이터셋 분할 비율
+  split_ratios:
+    train: 0.7
+    val: 0.2
+    test: 0.1
+  
+  # 이미지 전처리
+  preprocessing:
+    face_size: [224, 224]
+    face_padding: 0.2
+    normalize:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+  
+  # 데이터 로더 설정
+  dataloader:
+    num_workers: 4
+    pin_memory: true
+    shuffle_train: true
+
+# 학습 모니터링
+monitoring:
+  # 체크포인트 저장
+  checkpoint:
+    save_best: true
+    save_last: true
+    save_period: 10  # 에폭 간격
+  
+  # 로깅
+  logging:
+    log_interval: 100  # 배치 간격
+    plot_interval: 10  # 에폭 간격
+  
+  # 검증
+  validation:
+    val_interval: 1  # 에폭 간격
+    save_val_images: true
+
+# 하드웨어 설정
+hardware:
+  # GPU 설정
+  gpu:
+    mixed_precision: true  # AMP 사용
+    cudnn_benchmark: true
+  
+  # 메모리 최적화
+  memory:
+    gradient_accumulation_steps: 1
+    max_memory_usage: 0.8  # GPU 메모리 사용률 제한
+
+# 실험 설정
+experiment:
+  name: 'deepfake_detection_v1'
+  description: 'YOLO + EfficientNet 딥페이크 탐지 시스템'
+  tags: ['deepfake', 'face_detection', 'classification']
+  
+  # 시드 설정
+  random_seed: 42
+  
+  # 재현성
+  deterministic: true
+  benchmark: false

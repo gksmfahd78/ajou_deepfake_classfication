@@ -1,0 +1,124 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyTorch
+*.pth
+*.pt
+*.ckpt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Data directories
+data/
+input/images/*
+input/labels/*
+!input/images/.gitkeep
+!input/labels/.gitkeep
+
+# Model directories
+runs/
+pretrained_models/yolo/*
+pretrained_models/efficientnet/*
+!pretrained_models/yolo/.gitkeep
+!pretrained_models/efficientnet/.gitkeep
+
+# Output files
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
+*.mov
+!example_*.jpg
+!sample_*.jpg
+result_*.jpg
+screenshot_*.jpg
+webcam_screenshot_*.jpg
+
+# Logs
+*.log
+logs/
+wandb/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Cache
+.cache/
+*.cache
+
+# Training artifacts
+checkpoints/
+tensorboard_logs/
+training_history.json
+batch_results.json
+video_result_*.json
+dataset_stats.json
+trained_models_config.yaml
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Test files
+test_*.py
+debug_*.py
+experiment_*.py
