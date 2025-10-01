@@ -215,18 +215,37 @@ def train_deepfake_classifier(
     train_transform, val_transform = get_transforms(augment)
     
     # 데이터셋 생성
+    print("\n데이터셋 로드 중...")
     train_dataset = DeepfakeDataset(data_dir, train_transform, 'train')
     val_dataset = DeepfakeDataset(data_dir, val_transform, 'val')
-    
+
+    # 데이터셋 검증
+    if len(train_dataset) == 0:
+        raise ValueError(f"학습 데이터셋이 비어있습니다: {data_dir}/train")
+    if len(val_dataset) == 0:
+        raise ValueError(f"검증 데이터셋이 비어있습니다: {data_dir}/val")
+
+    # 최소 데이터 크기 경고
+    if len(train_dataset) < 100:
+        print(f"⚠️  경고: 학습 데이터가 너무 적습니다 ({len(train_dataset)}개). 최소 100개 이상 권장합니다.")
+    if len(val_dataset) < 20:
+        print(f"⚠️  경고: 검증 데이터가 너무 적습니다 ({len(val_dataset)}개). 최소 20개 이상 권장합니다.")
+
+    # num_workers 설정 (Windows에서는 0, Linux/Mac에서는 4)
+    import platform
+    num_workers = 0 if platform.system() == 'Windows' else 4
+
     # 데이터로더 생성
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, 
-        num_workers=4, pin_memory=True
+        train_dataset, batch_size=batch_size, shuffle=True,
+        num_workers=num_workers, pin_memory=(device.type == 'cuda')
     )
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False,
-        num_workers=4, pin_memory=True
+        num_workers=num_workers, pin_memory=(device.type == 'cuda')
     )
+
+    print(f"✅ 데이터로더 생성 완료 (num_workers={num_workers})")
     
     # 모델 생성
     model = DeepfakeClassifier(model_name=model_name, num_classes=2, pretrained=True)
@@ -242,15 +261,20 @@ def train_deepfake_classifier(
     # 체크포인트에서 재개
     start_epoch = 0
     if resume and os.path.exists(resume):
-        print(f"체크포인트에서 재개: {resume}")
-        checkpoint = torch.load(resume, map_location=device)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        start_epoch = checkpoint['epoch'] + 1
-        print(f"에폭 {start_epoch}부터 재개")
+        try:
+            print(f"\n체크포인트에서 재개: {resume}")
+            checkpoint = torch.load(resume, map_location=device)
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            start_epoch = checkpoint['epoch'] + 1
+            print(f"✅ 에폭 {start_epoch}부터 재개")
+        except Exception as e:
+            print(f"⚠️  체크포인트 로드 실패: {e}")
+            print("새로운 학습을 시작합니다.")
+            start_epoch = 0
     else:
-        print("새로운 학습 시작")
+        print("\n새로운 학습 시작")
     
     # 학습 이력 저장용
     history = {

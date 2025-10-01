@@ -26,6 +26,10 @@ MANIFEST
 *.pt
 *.ckpt
 
+# ONNX models
+onnx_models/
+*.onnx
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -102,6 +106,9 @@ temp/
 # Cache
 .cache/
 *.cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Training artifacts
 checkpoints/
@@ -111,6 +118,45 @@ batch_results.json
 video_result_*.json
 dataset_stats.json
 trained_models_config.yaml
+
+# Demo output
+demo_results/
+batch_results/
+*.json
+!config/*.json
+!package.json
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Spyder
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# Sphinx documentation
+docs/_build/
+docs/_static/
+docs/_templates/
 
 # Large files
 *.zip

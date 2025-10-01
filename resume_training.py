@@ -17,9 +17,21 @@ import yaml
 
 def load_config(config_path: str) -> dict:
     """YAML 설정 파일 로드"""
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-    return config
+    try:
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {config_path}")
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        # 필수 키 검증
+        if 'yolo' not in config or 'deepfake_classifier' not in config:
+            raise ValueError("설정 파일에 'yolo' 또는 'deepfake_classifier' 섹션이 없습니다.")
+
+        return config
+    except Exception as e:
+        print(f"❌ 설정 파일 로드 실패: {e}")
+        raise
 
 def train_yolo_with_config(config: dict, resume_path: str = None):
     """설정 파일을 사용한 YOLO 학습"""
@@ -180,26 +192,53 @@ def resume_with_config(
     
     # 학습 재개
     results = {}
-    
-    if mode in ['yolo', 'both'] and checkpoint_yolo:
-        try:
-            yolo_model_path = train_yolo_with_config(config, checkpoint_yolo)
-            results['yolo'] = yolo_model_path
-        except Exception as e:
-            print(f"YOLO 학습 재개 실패: {e}")
-    
-    if mode in ['classifier', 'both'] and checkpoint_classifier:
-        try:
-            classifier_model_path = train_classifier_with_config(config, checkpoint_classifier)
-            results['classifier'] = classifier_model_path
-        except Exception as e:
-            print(f"분류기 학습 재개 실패: {e}")
-    
+    errors = {}
+
+    if mode in ['yolo', 'both']:
+        if checkpoint_yolo:
+            try:
+                print("\n▶ YOLO 학습 재개 시작...")
+                yolo_model_path = train_yolo_with_config(config, checkpoint_yolo)
+                results['yolo'] = yolo_model_path
+                print(f"✅ YOLO 학습 완료: {yolo_model_path}")
+            except Exception as e:
+                error_msg = f"YOLO 학습 재개 실패: {e}"
+                print(f"❌ {error_msg}")
+                errors['yolo'] = str(e)
+        else:
+            print("⚠️  YOLO 체크포인트가 없어 건너뜁니다.")
+
+    if mode in ['classifier', 'both']:
+        if checkpoint_classifier:
+            try:
+                print("\n▶ 분류기 학습 재개 시작...")
+                classifier_model_path = train_classifier_with_config(config, checkpoint_classifier)
+                results['classifier'] = classifier_model_path
+                print(f"✅ 분류기 학습 완료: {classifier_model_path}")
+            except Exception as e:
+                error_msg = f"분류기 학습 재개 실패: {e}"
+                print(f"❌ {error_msg}")
+                errors['classifier'] = str(e)
+        else:
+            print("⚠️  분류기 체크포인트가 없어 건너뜁니다.")
+
     # 결과 요약
-    print("\n=== 학습 재개 완료 ===")
-    for model_type, model_path in results.items():
-        print(f"{model_type} 모델: {model_path}")
-    
+    print("\n=== 학습 재개 결과 ===")
+    if results:
+        print("\n✅ 성공:")
+        for model_type, model_path in results.items():
+            print(f"  {model_type}: {model_path}")
+
+    if errors:
+        print("\n❌ 실패:")
+        for model_type, error in errors.items():
+            print(f"  {model_type}: {error}")
+        # 하나라도 실패하면 경고 메시지
+        print("\n⚠️  일부 모델 학습이 실패했습니다. 위 에러 메시지를 확인하세요.")
+
+    if not results and not errors:
+        print("⚠️  재개할 체크포인트가 없습니다.")
+
     return results
 
 def list_available_checkpoints(save_dir: str = 'runs'):

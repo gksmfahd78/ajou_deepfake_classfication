@@ -59,39 +59,56 @@ def train_yolo_face_detector(
     """
     
     # 모델 초기화
-    if resume and os.path.exists(resume):
-        print(f"체크포인트에서 재개: {resume}")
-        model = YOLO(resume)
-    else:
-        model_name = f'yolov8{model_size}.pt' if pretrained else f'yolov8{model_size}.yaml'
-        model = YOLO(model_name)
-    
-    print(f"모델 초기화 완료: {model_name}")
+    try:
+        if resume and os.path.exists(resume):
+            print(f"체크포인트에서 재개: {resume}")
+            model = YOLO(resume)
+            model_name = resume
+        else:
+            model_name = f'yolov8{model_size}.pt' if pretrained else f'yolov8{model_size}.yaml'
+            print(f"모델 로드 중: {model_name}")
+            model = YOLO(model_name)
+
+        print(f"✅ 모델 초기화 완료: {model_name}")
+    except Exception as e:
+        print(f"❌ 모델 초기화 실패: {e}")
+        raise RuntimeError(f"YOLO 모델을 로드할 수 없습니다: {e}")
+
+    # 데이터셋 YAML 파일 검증
+    if not os.path.exists(data_yaml):
+        raise FileNotFoundError(f"데이터셋 YAML 파일을 찾을 수 없습니다: {data_yaml}")
+
     print(f"학습 데이터: {data_yaml}")
     print(f"에폭 수: {epochs}")
     print(f"배치 크기: {batch_size}")
     print(f"이미지 크기: {imgsz}")
-    
+    print(f"디바이스: {device}")
+
     # 학습 시작
-    results = model.train(
-        data=data_yaml,
-        epochs=epochs,
-        imgsz=imgsz,
-        batch=batch_size,
-        device=device,
-        project=save_dir,
-        name='face_detector',
-        save=True,
-        save_period=10,  # 10 에폭마다 체크포인트 저장
-        val=True,
-        plots=True,
-        verbose=True,
-        resume=bool(resume)  # 재개 모드
-    )
-    
-    print("학습 완료!")
-    print(f"최고 mAP50: {results.box.map50}")
-    print(f"최고 mAP50-95: {results.box.map}")
+    try:
+        print("\n학습 시작...")
+        results = model.train(
+            data=data_yaml,
+            epochs=epochs,
+            imgsz=imgsz,
+            batch=batch_size,
+            device=device,
+            project=save_dir,
+            name='face_detector',
+            save=True,
+            save_period=10,  # 10 에폭마다 체크포인트 저장
+            val=True,
+            plots=True,
+            verbose=True,
+            resume=bool(resume)  # 재개 모드
+        )
+
+        print("\n✅ 학습 완료!")
+        print(f"최고 mAP50: {results.box.map50:.4f}")
+        print(f"최고 mAP50-95: {results.box.map:.4f}")
+    except Exception as e:
+        print(f"\n❌ 학습 중 오류 발생: {e}")
+        raise
     
     # 최종 모델 저장
     best_model_path = os.path.join(save_dir, 'face_detector', 'weights', 'best.pt')

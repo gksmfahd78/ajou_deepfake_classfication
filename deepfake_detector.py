@@ -21,36 +21,55 @@ class DeepfakeDetectionPipeline:
             confidence_threshold: 얼굴 탐지 신뢰도 임계값
         """
         # 얼굴 탐지 모델 초기화
-        self.face_detector = YOLOFaceDetector(yolo_model_path)
-        
+        try:
+            self.face_detector = YOLOFaceDetector(yolo_model_path)
+        except Exception as e:
+            raise RuntimeError(f"얼굴 탐지 모델 초기화 실패: {e}")
+
         # 딥페이크 분류 모델 초기화
-        self.deepfake_classifier = DeepfakeClassifier(
-            model_name=efficientnet_model,
-            num_classes=2,
-            pretrained=True
-        )
-        
+        try:
+            self.deepfake_classifier = DeepfakeClassifier(
+                model_name=efficientnet_model,
+                num_classes=2,
+                pretrained=True
+            )
+        except Exception as e:
+            raise RuntimeError(f"딥페이크 분류 모델 초기화 실패: {e}")
+
         # 훈련된 가중치가 있다면 로드
-        if classifier_weights_path and os.path.exists(classifier_weights_path):
-            self.deepfake_classifier.load_weights(classifier_weights_path)
-        
+        if classifier_weights_path:
+            if os.path.exists(classifier_weights_path):
+                try:
+                    self.deepfake_classifier.load_weights(classifier_weights_path)
+                except Exception as e:
+                    raise RuntimeError(f"분류기 가중치 로드 실패: {e}")
+            else:
+                raise FileNotFoundError(f"분류기 가중치 파일을 찾을 수 없습니다: {classifier_weights_path}")
+
         self.confidence_threshold = confidence_threshold
     
     def detect_deepfake_from_image(self, image_path: str) -> Dict:
         """
         이미지에서 딥페이크 탐지
-        
+
         Args:
             image_path: 입력 이미지 경로
-            
+
         Returns:
             탐지 결과 딕셔너리
         """
+        # 파일 존재 여부 확인
+        if not os.path.exists(image_path):
+            return {"error": f"이미지 파일을 찾을 수 없습니다: {image_path}"}
+
         # 이미지 로드
-        image = cv2.imread(image_path)
-        if image is None:
-            return {"error": "이미지를 로드할 수 없습니다."}
-        
+        try:
+            image = cv2.imread(image_path)
+            if image is None:
+                return {"error": f"이미지를 로드할 수 없습니다: {image_path}"}
+        except Exception as e:
+            return {"error": f"이미지 로드 중 오류 발생: {e}"}
+
         return self.detect_deepfake_from_array(image)
     
     def detect_deepfake_from_array(self, image: np.ndarray) -> Dict:
@@ -117,23 +136,30 @@ class DeepfakeDetectionPipeline:
         
         return results
     
-    def detect_deepfake_from_video(self, video_path: str, 
+    def detect_deepfake_from_video(self, video_path: str,
                                   frame_interval: int = 30,
                                   max_frames: int = 100) -> Dict:
         """
         비디오에서 딥페이크 탐지
-        
+
         Args:
             video_path: 비디오 파일 경로
             frame_interval: 프레임 샘플링 간격
             max_frames: 최대 처리 프레임 수
-            
+
         Returns:
             비디오 분석 결과
         """
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            return {"error": "비디오를 열 수 없습니다."}
+        # 파일 존재 여부 확인
+        if not os.path.exists(video_path):
+            return {"error": f"비디오 파일을 찾을 수 없습니다: {video_path}"}
+
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                return {"error": f"비디오를 열 수 없습니다: {video_path}"}
+        except Exception as e:
+            return {"error": f"비디오 로드 중 오류 발생: {e}"}
         
         results = {
             "total_frames_analyzed": 0,

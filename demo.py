@@ -19,28 +19,37 @@ import time
 from deepfake_detector import DeepfakeDetectionPipeline
 
 class DeepfakeDemo:
-    def __init__(self, 
+    def __init__(self,
                  yolo_model_path=None,
                  classifier_weights_path=None,
                  confidence_threshold=0.5):
         """
         데모 클래스 초기화
-        
+
         Args:
             yolo_model_path: 커스텀 YOLO 모델 경로
             classifier_weights_path: 훈련된 분류기 경로
             confidence_threshold: 탐지 신뢰도 임계값
         """
         print("딥페이크 탐지 파이프라인 초기화 중...")
-        
-        self.detector = DeepfakeDetectionPipeline(
-            yolo_model_path=yolo_model_path,
-            efficientnet_model='efficientnet-b0',
-            classifier_weights_path=classifier_weights_path,
-            confidence_threshold=confidence_threshold
-        )
-        
-        print("✅ 파이프라인 초기화 완료!")
+
+        try:
+            self.detector = DeepfakeDetectionPipeline(
+                yolo_model_path=yolo_model_path,
+                efficientnet_model='efficientnet-b0',
+                classifier_weights_path=classifier_weights_path,
+                confidence_threshold=confidence_threshold
+            )
+            print("✅ 파이프라인 초기화 완료!")
+        except FileNotFoundError as e:
+            print(f"❌ 파일을 찾을 수 없습니다: {e}")
+            raise
+        except RuntimeError as e:
+            print(f"❌ 모델 초기화 실패: {e}")
+            raise
+        except Exception as e:
+            print(f"❌ 예상치 못한 오류 발생: {e}")
+            raise
     
     def analyze_single_image(self, image_path, save_result=True):
         """단일 이미지 분석"""
@@ -313,37 +322,52 @@ def main():
                        help='비디오 프레임 샘플링 간격')
     parser.add_argument('--max_frames', type=int, default=100,
                        help='비디오 최대 처리 프레임 수')
-    
+
     args = parser.parse_args()
-    
+
     # 데모 인스턴스 생성
-    demo = DeepfakeDemo(
-        yolo_model_path=args.yolo_model,
-        classifier_weights_path=args.classifier_model,
-        confidence_threshold=args.confidence
-    )
-    
+    try:
+        demo = DeepfakeDemo(
+            yolo_model_path=args.yolo_model,
+            classifier_weights_path=args.classifier_model,
+            confidence_threshold=args.confidence
+        )
+    except Exception as e:
+        print(f"\n❌ 데모 초기화 실패: {e}")
+        print("\n💡 해결 방법:")
+        print("  1. 먼저 모델을 학습하세요: python prepare_data.py --image_dir input/images --label_dir input/labels")
+        print("  2. 학습된 모델 경로를 지정하세요:")
+        print("     --yolo_model runs/face_detection/face_detector/weights/best.pt")
+        print("     --classifier_model runs/deepfake_classifier/best_model.pth")
+        return 1
+
     # 모드별 실행
-    if args.mode == 'image':
-        if not args.input:
-            print("❌ 이미지 모드에는 --input 경로가 필요합니다.")
-            return
-        demo.analyze_single_image(args.input)
-    
-    elif args.mode == 'batch':
-        if not args.input:
-            print("❌ 배치 모드에는 --input 디렉토리가 필요합니다.")
-            return
-        demo.analyze_batch_images(args.input, args.output)
-    
-    elif args.mode == 'video':
-        if not args.input:
-            print("❌ 비디오 모드에는 --input 파일이 필요합니다.")
-            return
-        demo.analyze_video(args.input, args.frame_interval, args.max_frames)
-    
-    elif args.mode == 'webcam':
-        demo.run_webcam_demo()
+    try:
+        if args.mode == 'image':
+            if not args.input:
+                print("❌ 이미지 모드에는 --input 경로가 필요합니다.")
+                return 1
+            demo.analyze_single_image(args.input)
+
+        elif args.mode == 'batch':
+            if not args.input:
+                print("❌ 배치 모드에는 --input 디렉토리가 필요합니다.")
+                return 1
+            demo.analyze_batch_images(args.input, args.output)
+
+        elif args.mode == 'video':
+            if not args.input:
+                print("❌ 비디오 모드에는 --input 파일이 필요합니다.")
+                return 1
+            demo.analyze_video(args.input, args.frame_interval, args.max_frames)
+
+        elif args.mode == 'webcam':
+            demo.run_webcam_demo()
+
+        return 0
+    except Exception as e:
+        print(f"\n❌ 실행 중 오류 발생: {e}")
+        return 1
 
 if __name__ == "__main__":
     main()

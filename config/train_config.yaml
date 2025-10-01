@@ -1,15 +1,27 @@
-# 딥페이크 탐지 모델 학습 설정
+# =================================================================
+# 딥페이크 탐지 모델 학습 설정 파일
+# =================================================================
+# 이 파일은 prepare_data.py 실행 시 data_path가 자동으로 업데이트됩니다
+#
+# 🔧 GPU 메모리 부족 시:
+#   - batch_size를 줄이기 (16 -> 8 -> 4)
+#   - model_size/model_name을 작게 (n, b0)
+#
+# ⏱️ 학습 시간 예상 (RTX 3090 기준):
+#   - YOLO nano (100 epochs): 1-2시간
+#   - EfficientNet-B0 (50 epochs): 2-3시간
+# =================================================================
 
 # YOLO 얼굴 탐지 모델 설정
 yolo:
-  model_size: 'n'  # n, s, m, l, x
-  epochs: 100
-  batch_size: 16
-  imgsz: 640
-  device: 'auto'  # auto, cpu, 0, 1, ...
-  data_path: 'data/face_detection'
+  model_size: 'n'  # 모델 크기: n(nano)=가장 빠름, s(small), m(medium), l(large), x(xlarge)=가장 정확
+  epochs: 100      # 학습 에폭 수 (더 많이 하면 정확도 향상, 시간 증가)
+  batch_size: 16   # 배치 크기 (GPU 메모리 8GB: 16, 4GB: 8, 2GB: 4)
+  imgsz: 640       # 입력 이미지 크기 (640 권장, 메모리 부족시 320)
+  device: 'cuda'   # 'cuda'=GPU 사용, 'cpu'=CPU만 사용 (매우 느림)
+  data_path: 'data/face_detection'  # ⚠️ 자동 업데이트됨
   save_dir: 'runs/face_detection'
-  pretrained: true
+  pretrained: true  # ImageNet 사전학습 가중치 사용 (권장: true)
   confidence_threshold: 0.5
   
   # 학습 파라미터
@@ -34,13 +46,13 @@ yolo:
 
 # EfficientNet 딥페이크 분류 모델 설정
 deepfake_classifier:
-  model_name: 'efficientnet-b0'  # b0~b7
-  epochs: 50
-  batch_size: 32
-  learning_rate: 0.001
-  weight_decay: 0.0001
-  device: 'auto'
-  data_path: 'data/deepfake_classification'
+  model_name: 'efficientnet-b0'  # b0(가장 빠름), b1, b2, b3(권장), b4, b5, b6, b7(가장 정확하지만 느림)
+  epochs: 50                     # 학습 에폭 수 (50-100 권장)
+  batch_size: 32                 # 배치 크기 (GPU 메모리 8GB: 32, 4GB: 16)
+  learning_rate: 0.001           # 학습률 (기본값, 수렴이 안되면 0.0001로 줄이기)
+  weight_decay: 0.0001           # 가중치 감쇠 (과적합 방지)
+  device: 'cuda'                 # 'cuda' 또는 'cpu'
+  data_path: 'data/deepfake_classification'  # ⚠️ 자동 업데이트됨
   save_dir: 'runs/deepfake_classifier'
   
   # 데이터 증강

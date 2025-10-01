@@ -78,11 +78,11 @@ python demo.py webcam
 
 ## 🎯 즉시 사용 가능한 데모
 
-### 기본 모델로 바로 테스트
+### ⚠️ 중요: 기본 모델의 한계
 ```python
 from deepfake_detector import DeepfakeDetectionPipeline
 
-# 기본 모델 사용 (자동 다운로드)
+# ❌ 기본 모델 (정확도 매우 낮음 - 권장하지 않음)
 detector = DeepfakeDetectionPipeline()
 
 # 이미지 분석
@@ -91,26 +91,23 @@ print(f"결과: {results['overall_result']}")
 print(f"신뢰도: {results['confidence']:.3f}")
 ```
 
-### 사전 훈련된 모델 사용 (더 좋은 성능)
-```python
-# 사전 훈련된 전용 모델 사용 (YOLO만 해당)
-detector = DeepfakeDetectionPipeline(
-    yolo_model_path="pretrained_models/yolo/yolov8n-face.pt",
-    classifier_weights_path="pretrained_models/efficientnet/my-efficientnet-b0-deepfake.pth"  # 직접 학습 필요
-)
+**⚠️ 경고:**
+- 기본 YOLOv8n은 일반 객체 탐지 모델이므로 얼굴 탐지 정확도가 낮습니다
+- EfficientNet은 학습 없이 무작위 예측만 수행합니다
+- **실제 사용을 위해서는 반드시 모델을 학습하세요!**
 
-results = detector.detect_deepfake_from_image("test.jpg")
-```
-
-### 직접 학습한 모델 사용
+### ✅ 직접 학습한 모델 사용 (권장)
 ```python
-# 커스텀 학습된 모델 사용
+# 🎯 커스텀 학습된 모델 사용 (권장!)
 detector = DeepfakeDetectionPipeline(
     yolo_model_path="runs/face_detection/face_detector/weights/best.pt",
-    classifier_weights_path="runs/deepfake_classifier/best_model.pth"
+    classifier_weights_path="runs/deepfake_classifier/best_model.pth",
+    confidence_threshold=0.7
 )
 
 results = detector.detect_deepfake_from_image("test.jpg")
+print(f"✅ 결과: {results['overall_result']}")
+print(f"📊 신뢰도: {results['confidence']:.3f}")
 ```
 
 ## 📊 다양한 데모 모드

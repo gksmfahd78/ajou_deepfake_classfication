@@ -55,14 +55,94 @@ deepfake_detection/
 └── README.md
 ```
 
+## ⚠️ 중요 사항
+
+**이 시스템을 사용하려면 반드시 두 모델을 먼저 학습해야 합니다:**
+
+1. **YOLO 얼굴 탐지 모델**: 기본 YOLOv8n은 일반 객체 탐지 모델이므로 얼굴 탐지 성능이 제한적입니다. 제공된 데이터로 얼굴 탐지 모델을 학습하세요.
+2. **EfficientNet 분류 모델**: 딥페이크 판별을 위해 반드시 학습된 가중치가 필요합니다. 사전 학습 없이는 무작위 예측만 수행됩니다.
+
+**학습 없이 추론 코드를 실행하면 의미 있는 결과를 얻을 수 없습니다.**
+
 ## 🛠️ 설치
 
+### 방법 1: pip 사용 (빠른 시작)
+
 ```bash
+# 가상환경 생성 (권장)
+python -m venv venv
+
+# 가상환경 활성화
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
 # 의존성 설치
 pip install -r requirements.txt
 ```
 
+### 방법 2: Conda 사용 (추천)
+
+```bash
+# Conda 환경 생성 (모든 의존성 포함)
+conda env create -f environment.yml
+
+# 환경 활성화
+conda activate deepfake-detection
+
+# 설치 확인
+python -c "import torch; print(f'PyTorch: {torch.__version__}')"
+python -c "import cv2; print(f'OpenCV: {cv2.__version__}')"
+```
+
+### 방법 3: 패키지로 설치
+
+```bash
+# 개발 모드로 설치 (프로젝트 수정 시)
+pip install -e .
+
+# 또는 일반 설치
+pip install .
+```
+
+### 환경 설정
+
+```bash
+# .env 파일 생성
+cp .env.example .env
+
+# .env 파일에서 필요한 설정 수정
+# - DEVICE (cuda/cpu)
+# - 데이터 경로
+# - 학습 하이퍼파라미터
+```
+
+**⚠️ GPU 사용 시:**
+- CUDA 11.8+ 설치 필요
+- NVIDIA 드라이버 최신 버전 권장
+- CUDA 버전에 맞는 PyTorch 설치:
+  ```bash
+  # CUDA 11.8
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+
+  # CUDA 12.1
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+  ```
+
 ## 📊 데이터 준비
+
+### 📏 데이터셋 권장 크기
+| 목적 | 최소 | 권장 | 이상적 |
+|------|------|------|--------|
+| 테스트 | 100장 | 500장 | 1,000+ |
+| 프로토타입 | 500장 | 2,000장 | 5,000+ |
+| 실제 배포 | 5,000장 | 20,000장 | 50,000+ |
+
+**⚠️ 중요:**
+- Real/Fake 비율은 **1:1** 권장 (균형 잡힌 데이터셋)
+- 이미지당 최소 1개 이상의 얼굴 포함
+- 다양한 각도, 조명, 배경 포함 권장
 
 ### 1. 라벨 형식
 각 이미지에 대응하는 `.txt` 파일:
@@ -73,7 +153,7 @@ RECT,100,100,200,200,none   # none은 real로 처리
 ```
 - `x1,y1`: 박스 왼쪽 위 좌표
 - `x2,y2`: 박스 오른쪽 아래 좌표
-- `label`: `fake`, `real`, `none`
+- `label`: `fake`, `real`, `none` (none은 real로 처리됨)
 
 ### 2. 데이터셋 자동 준비
 **데이터를 `input/` 폴더에 넣은 후:**
@@ -151,11 +231,20 @@ python resume_training.py list
 ## 🔍 모델 사용
 
 ### 기본 사용법
+
+⚠️ **필수**: 학습된 모델 가중치가 필요합니다. 아래 코드 실행 전에 먼저 모델을 학습하세요.
+
 ```python
 from deepfake_detector import DeepfakeDetectionPipeline
 
-# 파이프라인 초기화 (기본 모델 사용)
-detector = DeepfakeDetectionPipeline()
+# ⚠️ 경고: 기본 모델은 학습되지 않아 정확도가 매우 낮습니다
+# 반드시 학습된 모델을 사용하세요
+detector = DeepfakeDetectionPipeline(
+    yolo_model_path="runs/face_detection/face_detector/weights/best.pt",  # 필수: 학습된 YOLO 모델
+    efficientnet_model='efficientnet-b0',
+    classifier_weights_path="runs/deepfake_classifier/best_model.pth",  # 필수: 학습된 분류기
+    confidence_threshold=0.7
+)
 
 # 이미지 분석
 results = detector.detect_deepfake_from_image("test_image.jpg")
@@ -168,7 +257,7 @@ results = detector.detect_deepfake_from_video("test_video.mp4")
 
 ### 학습된 모델 사용
 ```python
-# 커스텀 학습된 모델로 초기화
+# 커스텀 학습된 모델로 초기화 (권장)
 detector = DeepfakeDetectionPipeline(
     yolo_model_path="runs/face_detection/face_detector/weights/best.pt",
     efficientnet_model='efficientnet-b0',
@@ -176,13 +265,8 @@ detector = DeepfakeDetectionPipeline(
     confidence_threshold=0.7
 )
 
-# 또는 사전 훈련된 모델 사용 (YOLO만 해당, EfficientNet은 직접 학습 필요)
-detector = DeepfakeDetectionPipeline(
-    yolo_model_path="pretrained_models/yolo/yolov8n-face.pt",
-    classifier_weights_path="pretrained_models/efficientnet/my-efficientnet-b0-deepfake.pth"  # 직접 학습한 모델
-)
-
 # 실시간 웹캠 (example_usage.py 참조)
+# ⚠️ 주의: 학습된 모델 경로를 코드에서 수정해야 합니다
 python example_usage.py
 ```
 
@@ -231,17 +315,29 @@ python utils/checkpoint_manager.py clean \
 ```yaml
 # YOLO 설정
 yolo:
-  model_size: 'n'  # n, s, m, l, x
-  epochs: 100
-  batch_size: 16
-  
-# EfficientNet 설정  
+  model_size: 'n'  # n, s, m, l, x (n=가장 빠름, x=가장 정확)
+  epochs: 100      # 학습 반복 횟수
+  batch_size: 16   # GPU 메모리에 맞게 조정
+  imgsz: 640       # 입력 이미지 크기
+  device: 'cuda'   # cuda 또는 cpu
+
+# EfficientNet 설정
 deepfake_classifier:
-  model_name: 'efficientnet-b0'  # b0~b7
+  model_name: 'efficientnet-b0'  # b0~b7 (b0=가장 빠름, b7=가장 정확)
   epochs: 50
   batch_size: 32
-  learning_rate: 0.001
+  learning_rate: 0.001  # 수렴 안되면 0.0001로 줄이기
+  device: 'cuda'
 ```
+
+### 🎯 성능 vs 속도 선택 가이드
+
+| 용도 | YOLO | EfficientNet | Batch Size | 학습 시간 |
+|------|------|--------------|------------|-----------|
+| 🏃 빠른 프로토타입 | n | b0 | 32+64 | 1-2시간 |
+| ⚖️ 균형 (권장) | s | b2 | 16+32 | 4-6시간 |
+| 🎯 높은 정확도 | m | b4 | 8+16 | 12-24시간 |
+| 🏆 최고 성능 | l | b6 | 4+8 | 2-3일 |
 
 ## 📈 데이터 전처리 도구
 
@@ -314,6 +410,8 @@ predictions, confidences = detector.deepfake_classifier.predict_batch(face_image
 
 ## 📝 주의사항
 
+- **⚠️ 모델 학습 필수**: 기본 모델로는 제대로 작동하지 않습니다. 반드시 학습 후 사용하세요
+- **YOLO 모델 한계**: 기본 YOLOv8n은 얼굴 전용이 아닙니다. 커스텀 학습 강력 권장
 - **GPU 권장**: CUDA 사용 시 학습 속도 대폭 향상
 - **데이터 품질**: 고품질 라벨링이 모델 성능에 직결
 - **모델 크기**: EfficientNet-B0~B7, YOLO n~x 중 컴퓨팅 자원에 맞게 선택
@@ -321,15 +419,77 @@ predictions, confidences = detector.deepfake_classifier.predict_batch(face_image
 
 ## 🆘 문제 해결
 
+### 자주 발생하는 문제
+
+#### 1. GPU 메모리 부족 (CUDA Out of Memory)
 ```bash
-# 1. 체크포인트 확인
+# 해결 방법 1: batch_size 줄이기
+# config/train_config.yaml 수정:
+yolo:
+  batch_size: 8  # 16에서 8로 줄이기
+deepfake_classifier:
+  batch_size: 16  # 32에서 16으로 줄이기
+
+# 해결 방법 2: 더 작은 모델 사용
+yolo:
+  model_size: 'n'  # nano 사용
+deepfake_classifier:
+  model_name: 'efficientnet-b0'  # b0 사용
+```
+
+#### 2. 모델을 찾을 수 없음
+```bash
+# 체크포인트 확인
 python resume_training.py list
 
-# 2. 데이터셋 검증
+# 데이터 준비 확인
+ls data/face_detection
+ls data/deepfake_classification
+
+# 처음부터 다시 시작
+python prepare_data.py --image_dir input/images --label_dir input/labels
+python resume_training.py config
+```
+
+#### 3. 학습이 수렴하지 않음
+```yaml
+# config/train_config.yaml에서 learning_rate 줄이기
+deepfake_classifier:
+  learning_rate: 0.0001  # 0.001에서 0.0001로
+```
+
+#### 4. 데이터셋 검증
+```bash
+# 데이터셋 상태 확인
 python utils/data_utils.py validate --source_dir data
 
-# 3. GPU 메모리 부족시 배치 크기 줄이기
-# config/train_config.yaml에서 batch_size 값 감소
+# 라벨 형식 확인
+cat input/labels/sample.txt
+# 출력 예시:
+# RECT,138,167,187,219,fake
+# RECT,348,249,376,286,real
+```
+
+#### 5. Python 패키지 오류
+```bash
+# 패키지 재설치
+pip install -r requirements.txt --upgrade
+
+# 특정 패키지 문제 시
+pip uninstall torch torchvision
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+```
+
+#### 6. 학습 중단 후 재개가 안됨
+```bash
+# 수동으로 체크포인트 지정
+python resume_training.py yolo \
+    --data_path data/face_detection \
+    --yolo_checkpoint runs/face_detection/face_detector/weights/last.pt
+
+python resume_training.py classifier \
+    --data_dir data/deepfake_classification \
+    --classifier_checkpoint runs/deepfake_classifier/checkpoint_epoch_30.pth
 ```
 
 ## ⚡ ONNX 변환 (성능 최적화)
@@ -416,23 +576,85 @@ python demo.py image --input test.jpg \
 
 ## 🚨 주의사항
 
-1. **모델 성능**: 학습 데이터의 품질과 다양성이 중요합니다
-2. **처리 속도**: GPU 사용 시 최적 성능을 발휘합니다
-3. **메모리 사용**: 대용량 비디오 처리 시 배치 크기 조정이 필요합니다
-4. **업데이트**: 새로운 딥페이크 기법에 대응하여 주기적 재학습이 필요합니다
+1. **⚠️ 학습 필수**: 사전 학습 없이는 시스템이 제대로 작동하지 않습니다
+2. **모델 성능**: 학습 데이터의 품질과 다양성이 중요합니다
+3. **처리 속도**: GPU 사용 시 최적 성능을 발휘합니다
+4. **메모리 사용**: 대용량 비디오 처리 시 배치 크기 조정이 필요합니다
+5. **업데이트**: 새로운 딥페이크 기법에 대응하여 주기적 재학습이 필요합니다
 
 ## 📋 시스템 요구사항
 
-### 최소 요구사항
+### 최소 요구사항 (학습)
+- Python 3.8+
+- 16GB RAM
+- GPU: NVIDIA GTX 1060 (6GB VRAM) 이상
+- 저장 공간: 20GB 이상
+
+### 권장 요구사항 (학습)
+- Python 3.9+
+- 32GB RAM
+- GPU: NVIDIA RTX 3060 이상 (12GB+ VRAM)
+- SSD 저장소 50GB+
+
+### 추론만 실행 시
 - Python 3.8+
 - 8GB RAM
-- CPU: 4코어 이상
+- GPU: NVIDIA GTX 1050 (4GB) 또는 CPU (느림)
+- 저장 공간: 5GB
 
-### 권장 요구사항
-- Python 3.9+
-- 16GB+ RAM
-- GPU: NVIDIA RTX 시리즈 (8GB+ VRAM)
-- SSD 저장소
+### ⏱️ 예상 학습 시간
+| 구성 | GPU | 데이터셋 | 학습 시간 |
+|------|-----|----------|-----------|
+| YOLO-n + B0 | RTX 4090 | 1,000장 | 30-60분 |
+| YOLO-n + B0 | RTX 3090 | 5,000장 | 3-5시간 |
+| YOLO-s + B3 | RTX 3090 | 10,000장 | 8-12시간 |
+| YOLO-m + B5 | RTX 4090 | 50,000장 | 1-2일 |
+
+### 💾 GPU 메모리 사용량 가이드
+| 모델 | Batch Size | 필요 VRAM |
+|------|------------|-----------|
+| YOLO-n + B0 | 16 + 32 | 6-8GB |
+| YOLO-s + B1 | 8 + 16 | 8-10GB |
+| YOLO-m + B3 | 4 + 8 | 10-14GB |
+| YOLO-l + B5 | 2 + 4 | 16-20GB |
+
+**GPU 메모리 부족 시:** `config/train_config.yaml`에서 `batch_size`를 절반으로 줄이세요.
+
+## 📊 예상 성능 벤치마크
+
+### 모델 정확도 (데이터셋 크기별)
+| 데이터셋 | 모델 구성 | Accuracy | Precision | Recall | F1 | 학습 시간* |
+|---------|----------|----------|-----------|--------|----|-----------|
+| 1K 이미지 | YOLO-n + B0 | 70-80% | 0.75 | 0.72 | 0.73 | 1-2h |
+| 5K 이미지 | YOLO-s + B2 | 85-90% | 0.87 | 0.85 | 0.86 | 4-6h |
+| 20K 이미지 | YOLO-m + B3 | 90-95% | 0.92 | 0.90 | 0.91 | 12-18h |
+| 50K+ 이미지 | YOLO-l + B5 | 95-98% | 0.96 | 0.95 | 0.95 | 2-3d |
+
+*RTX 3090 기준
+
+### 추론 속도 (FPS)
+| 모델 | GPU (RTX 3090) | GPU (GTX 1060) | CPU (i7) |
+|------|----------------|----------------|----------|
+| YOLO-n + B0 | 60+ | 25-30 | 2-3 |
+| YOLO-s + B2 | 40-50 | 15-20 | 1-2 |
+| YOLO-m + B3 | 30-35 | 8-12 | <1 |
+| YOLO-l + B5 | 15-20 | 3-5 | <1 |
+
+### 성능 목표값
+**YOLO 얼굴 탐지:**
+- mAP50: 0.85+ (목표)
+- Precision: 0.90+ (목표)
+- Recall: 0.85+ (목표)
+
+**EfficientNet 분류:**
+- Accuracy: 0.90+ (목표)
+- F1-Score: 0.89+ (목표)
+- AUC-ROC: 0.95+ (목표)
+
+**⚠️ 참고:**
+- 실제 성능은 데이터 품질, 라벨 정확도, 다양성에 크게 영향받습니다
+- Real/Fake 비율이 불균형하면 성능이 저하됩니다
+- 데이터 증강(augmentation)을 활성화하면 일반화 성능이 향상됩니다
 
 ## 🔗 참고 자료
 

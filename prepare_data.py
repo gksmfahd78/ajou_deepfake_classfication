@@ -128,23 +128,54 @@ def prepare_full_pipeline(
     
     # 5. 설정 파일 업데이트
     print("\n5. 설정 파일 업데이트 중...")
-    
-    # config/train_config.yaml 업데이트
+
+    # config/train_config.yaml 업데이트 또는 생성
     config_file = Path('config/train_config.yaml')
-    if config_file.exists():
+    config_file.parent.mkdir(exist_ok=True)
+
+    try:
         import yaml
-        
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-        
+
+        # 기존 설정 파일이 있으면 로드, 없으면 기본 템플릿 생성
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            print(f"기존 설정 파일 로드: {os.path.normpath(str(config_file))}")
+        else:
+            print(f"설정 파일이 없어 새로 생성합니다: {os.path.normpath(str(config_file))}")
+            config = {
+                'yolo': {
+                    'model_size': 'n',
+                    'epochs': 100,
+                    'imgsz': 640,
+                    'batch_size': 16,
+                    'device': 'cuda',
+                    'save_dir': 'runs/face_detection',
+                    'pretrained': True
+                },
+                'deepfake_classifier': {
+                    'model_name': 'efficientnet-b0',
+                    'epochs': 50,
+                    'batch_size': 32,
+                    'learning_rate': 0.001,
+                    'weight_decay': 0.0001,
+                    'save_dir': 'runs/deepfake_classifier',
+                    'augment': True,
+                    'device': 'cuda'
+                }
+            }
+
         # 경로 업데이트 (정규화된 경로 사용)
         config['yolo']['data_path'] = os.path.normpath(str(yolo_dir.absolute())).replace('\\', '/')
         config['deepfake_classifier']['data_path'] = os.path.normpath(str(classification_dir.absolute())).replace('\\', '/')
-        
+
         with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
-        
-        print(f"설정 파일 업데이트: {os.path.normpath(str(config_file))}")
+
+        print(f"✅ 설정 파일 저장: {os.path.normpath(str(config_file))}")
+    except Exception as e:
+        print(f"⚠️  설정 파일 처리 중 오류 발생: {e}")
+        print("설정 파일 없이 계속 진행합니다.")
     
     print("\n=== 데이터 준비 완료 ===")
     print(f"YOLO 데이터: {os.path.normpath(str(yolo_dir))}")

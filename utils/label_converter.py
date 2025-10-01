@@ -32,17 +32,31 @@ def parse_custom_label(label_path: str) -> List[Dict]:
                 # RECT,x1,y1,x2,y2,label 형식 파싱
                 parts = line.split(',')
                 if len(parts) >= 6:
-                    x1, y1, x2, y2 = map(int, parts[1:5])
-                    label = parts[5].strip().lower()
-                    
-                    # 'none'을 'real'로 처리 (기본값)
-                    if label == 'none' or label == '':
-                        label = 'real'
-                    
-                    faces.append({
-                        'bbox': (x1, y1, x2, y2),
-                        'label': label
-                    })
+                    try:
+                        x1, y1, x2, y2 = map(int, parts[1:5])
+                        label = parts[5].strip().lower()
+
+                        # 좌표 검증
+                        if x1 < 0 or y1 < 0 or x2 <= x1 or y2 <= y1:
+                            print(f"⚠️  잘못된 좌표 무시: {label_path} - ({x1},{y1},{x2},{y2})")
+                            continue
+
+                        # 'none'을 'real'로 처리 (기본값)
+                        if label == 'none' or label == '':
+                            label = 'real'
+
+                        # 라벨 검증
+                        if label not in ['real', 'fake']:
+                            print(f"⚠️  알 수 없는 라벨 무시: {label_path} - {label}")
+                            continue
+
+                        faces.append({
+                            'bbox': (x1, y1, x2, y2),
+                            'label': label
+                        })
+                    except ValueError as e:
+                        print(f"⚠️  좌표 파싱 실패: {label_path} - {e}")
+                        continue
     
     except Exception as e:
         print(f"라벨 파일 파싱 실패: {label_path}, {e}")
@@ -114,13 +128,27 @@ def convert_to_yolo_format(
         yolo_labels = []
         for face in faces:
             x1, y1, x2, y2 = face['bbox']
-            
+
+            # 좌표가 이미지 범위 내인지 검증
+            if x1 < 0 or y1 < 0 or x2 > w or y2 > h:
+                print(f"⚠️  이미지 범위 벗어남: {img_file.name} - ({x1},{y1},{x2},{y2}), 이미지 크기: ({w},{h})")
+                # 좌표를 이미지 범위 내로 제한
+                x1 = max(0, min(x1, w - 1))
+                y1 = max(0, min(y1, h - 1))
+                x2 = max(0, min(x2, w))
+                y2 = max(0, min(y2, h))
+
             # YOLO 형식: (x_center, y_center, width, height) - 정규화됨
             x_center = (x1 + x2) / 2.0 / w
             y_center = (y1 + y2) / 2.0 / h
             width = (x2 - x1) / w
             height = (y2 - y1) / h
-            
+
+            # 정규화된 좌표 검증 (0~1 범위)
+            if not (0 <= x_center <= 1 and 0 <= y_center <= 1 and 0 < width <= 1 and 0 < height <= 1):
+                print(f"⚠️  비정상적인 정규화 좌표: {img_file.name} - center:({x_center:.3f},{y_center:.3f}), size:({width:.3f},{height:.3f})")
+                continue
+
             # 클래스 ID: 0 (얼굴)
             yolo_labels.append(f"0 {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}")
         
