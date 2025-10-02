@@ -205,9 +205,9 @@ def extract_faces_for_classification(
     label_path = Path(label_dir)
     output_path = Path(output_dir)
     
-    # 출력 디렉토리 생성 (real/fake 폴더)
-    real_dir = output_path / 'real'
-    fake_dir = output_path / 'fake'
+    # 출력 디렉토리 생성 (REAL/FAKE 폴더 - 대문자)
+    real_dir = output_path / 'REAL'
+    fake_dir = output_path / 'FAKE'
     real_dir.mkdir(parents=True, exist_ok=True)
     fake_dir.mkdir(parents=True, exist_ok=True)
     
