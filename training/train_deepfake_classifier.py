@@ -43,20 +43,24 @@ class DeepfakeDataset(Dataset):
     def _load_samples(self):
         """이미지 경로와 라벨 로드"""
         split_dir = self.data_dir / self.split
-        
-        # real 이미지 (라벨 0)
-        real_dir = split_dir / 'real'
-        if real_dir.exists():
-            for img_path in real_dir.glob('*'):
-                if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
-                    self.samples.append((str(img_path), 0))
-        
-        # fake 이미지 (라벨 1)
-        fake_dir = split_dir / 'fake'
-        if fake_dir.exists():
-            for img_path in fake_dir.glob('*'):
-                if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
-                    self.samples.append((str(img_path), 1))
+
+        # real 이미지 (라벨 0) - 대소문자 구분 없이 처리
+        for class_name in ['real', 'REAL', 'Real']:
+            real_dir = split_dir / class_name
+            if real_dir.exists():
+                for img_path in real_dir.glob('*'):
+                    if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
+                        self.samples.append((str(img_path), 0))
+                break  # 하나라도 찾으면 종료
+
+        # fake 이미지 (라벨 1) - 대소문자 구분 없이 처리
+        for class_name in ['fake', 'FAKE', 'Fake']:
+            fake_dir = split_dir / class_name
+            if fake_dir.exists():
+                for img_path in fake_dir.glob('*'):
+                    if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
+                        self.samples.append((str(img_path), 1))
+                break  # 하나라도 찾으면 종료
         
         print(f"{self.split} 데이터셋: {len(self.samples)}개 샘플")
         
