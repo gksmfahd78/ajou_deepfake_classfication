@@ -85,39 +85,40 @@ def resume_yolo_training(
     save_dir: str = 'runs/face_detection',
     epochs: int = None
 ):
-    """YOLO 학습 재개"""
-    
-    print("=== YOLO 얼굴 탐지 모델 학습 재개 ===")
-    
+    """YOLO 학습 재개 또는 처음부터 학습"""
+
+    print("=== YOLO 얼굴 탐지 모델 학습 ===")
+
     # 체크포인트 자동 찾기
     if not checkpoint_path:
         manager = CheckpointManager(save_dir)
         checkpoint_path = manager.find_latest_checkpoint('yolo')
-        
-        if not checkpoint_path:
-            print("재개할 YOLO 체크포인트를 찾을 수 없습니다.")
-            return None
-        
-        print(f"자동으로 찾은 체크포인트: {checkpoint_path}")
-    
+
+        if checkpoint_path:
+            print(f"✅ 체크포인트 발견: {checkpoint_path}")
+            print("   이어서 학습합니다.")
+        else:
+            print("⚠️  체크포인트가 없습니다.")
+            print("   처음부터 학습을 시작합니다.")
+
     # 데이터셋 YAML 확인
     data_yaml = os.path.join(data_path, 'dataset.yaml')
     if not os.path.exists(data_yaml):
         create_dataset_yaml(data_path, data_yaml)
-    
-    # 에폭 수 설정 (원래보다 더 학습하고 싶을 때)
+
+    # 에폭 수 설정
     if epochs is None:
         epochs = 100  # 기본값
-    
-    # 학습 재개
+
+    # 학습 시작 (재개 또는 새로 시작)
     results, best_model_path = train_yolo_face_detector(
         data_yaml=data_yaml,
         resume=checkpoint_path,
         epochs=epochs,
         save_dir=save_dir
     )
-    
-    print(f"YOLO 학습 재개 완료! 최고 성능 모델: {best_model_path}")
+
+    print(f"✅ YOLO 학습 완료! 최고 성능 모델: {best_model_path}")
     return best_model_path
 
 def resume_classifier_training(
@@ -126,34 +127,35 @@ def resume_classifier_training(
     save_dir: str = 'runs/deepfake_classifier',
     epochs: int = None
 ):
-    """분류기 학습 재개"""
-    
-    print("=== EfficientNet 딥페이크 분류기 학습 재개 ===")
-    
+    """분류기 학습 재개 또는 처음부터 학습"""
+
+    print("=== EfficientNet 딥페이크 분류기 학습 ===")
+
     # 체크포인트 자동 찾기
     if not checkpoint_path:
         manager = CheckpointManager(save_dir)
         checkpoint_path = manager.find_latest_checkpoint('classifier')
-        
-        if not checkpoint_path:
-            print("재개할 분류기 체크포인트를 찾을 수 없습니다.")
-            return None
-        
-        print(f"자동으로 찾은 체크포인트: {checkpoint_path}")
-    
+
+        if checkpoint_path:
+            print(f"✅ 체크포인트 발견: {checkpoint_path}")
+            print("   이어서 학습합니다.")
+        else:
+            print("⚠️  체크포인트가 없습니다.")
+            print("   처음부터 학습을 시작합니다.")
+
     # 에폭 수 설정
     if epochs is None:
         epochs = 50  # 기본값
-    
-    # 학습 재개
+
+    # 학습 시작 (재개 또는 새로 시작)
     model, best_model_path, history = train_deepfake_classifier(
         data_dir=data_dir,
         resume=checkpoint_path,
         epochs=epochs,
         save_dir=save_dir
     )
-    
-    print(f"분류기 학습 재개 완료! 최고 성능 모델: {best_model_path}")
+
+    print(f"✅ 분류기 학습 완료! 최고 성능 모델: {best_model_path}")
     return best_model_path
 
 def resume_with_config(
@@ -195,32 +197,38 @@ def resume_with_config(
     errors = {}
 
     if mode in ['yolo', 'both']:
-        if checkpoint_yolo:
-            try:
+        try:
+            if checkpoint_yolo:
                 print("\n▶ YOLO 학습 재개 시작...")
-                yolo_model_path = train_yolo_with_config(config, checkpoint_yolo)
-                results['yolo'] = yolo_model_path
-                print(f"✅ YOLO 학습 완료: {yolo_model_path}")
-            except Exception as e:
-                error_msg = f"YOLO 학습 재개 실패: {e}"
-                print(f"❌ {error_msg}")
-                errors['yolo'] = str(e)
-        else:
-            print("⚠️  YOLO 체크포인트가 없어 건너뜁니다.")
+                print(f"   체크포인트: {checkpoint_yolo}")
+            else:
+                print("\n▶ YOLO 처음부터 학습 시작...")
+                print("   체크포인트가 없어 새로 학습합니다.")
+
+            yolo_model_path = train_yolo_with_config(config, checkpoint_yolo)
+            results['yolo'] = yolo_model_path
+            print(f"✅ YOLO 학습 완료: {yolo_model_path}")
+        except Exception as e:
+            error_msg = f"YOLO 학습 실패: {e}"
+            print(f"❌ {error_msg}")
+            errors['yolo'] = str(e)
 
     if mode in ['classifier', 'both']:
-        if checkpoint_classifier:
-            try:
+        try:
+            if checkpoint_classifier:
                 print("\n▶ 분류기 학습 재개 시작...")
-                classifier_model_path = train_classifier_with_config(config, checkpoint_classifier)
-                results['classifier'] = classifier_model_path
-                print(f"✅ 분류기 학습 완료: {classifier_model_path}")
-            except Exception as e:
-                error_msg = f"분류기 학습 재개 실패: {e}"
-                print(f"❌ {error_msg}")
-                errors['classifier'] = str(e)
-        else:
-            print("⚠️  분류기 체크포인트가 없어 건너뜁니다.")
+                print(f"   체크포인트: {checkpoint_classifier}")
+            else:
+                print("\n▶ 분류기 처음부터 학습 시작...")
+                print("   체크포인트가 없어 새로 학습합니다.")
+
+            classifier_model_path = train_classifier_with_config(config, checkpoint_classifier)
+            results['classifier'] = classifier_model_path
+            print(f"✅ 분류기 학습 완료: {classifier_model_path}")
+        except Exception as e:
+            error_msg = f"분류기 학습 실패: {e}"
+            print(f"❌ {error_msg}")
+            errors['classifier'] = str(e)
 
     # 결과 요약
     print("\n=== 학습 재개 결과 ===")

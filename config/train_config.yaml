@@ -1,148 +1,109 @@
-# =================================================================
-# 딥페이크 탐지 모델 학습 설정 파일
-# =================================================================
-# 이 파일은 prepare_data.py 실행 시 data_path가 자동으로 업데이트됩니다
-#
-# 🔧 GPU 메모리 부족 시:
-#   - batch_size를 줄이기 (16 -> 8 -> 4)
-#   - model_size/model_name을 작게 (n, b0)
-#
-# ⏱️ 학습 시간 예상 (RTX 3090 기준):
-#   - YOLO nano (100 epochs): 1-2시간
-#   - EfficientNet-B0 (50 epochs): 2-3시간
-# =================================================================
-
-# YOLO 얼굴 탐지 모델 설정
-yolo:
-  model_size: 'n'  # 모델 크기: n(nano)=가장 빠름, s(small), m(medium), l(large), x(xlarge)=가장 정확
-  epochs: 100      # 학습 에폭 수 (더 많이 하면 정확도 향상, 시간 증가)
-  batch_size: 16   # 배치 크기 (GPU 메모리 8GB: 16, 4GB: 8, 2GB: 4)
-  imgsz: 640       # 입력 이미지 크기 (640 권장, 메모리 부족시 320)
-  device: 'cuda'   # 'cuda'=GPU 사용, 'cpu'=CPU만 사용 (매우 느림)
-  data_path: 'data/face_detection'  # ⚠️ 자동 업데이트됨
-  save_dir: 'runs/face_detection'
-  pretrained: true  # ImageNet 사전학습 가중치 사용 (권장: true)
-  confidence_threshold: 0.5
-  
-  # 학습 파라미터
-  optimizer: 'AdamW'
-  lr0: 0.01  # 초기 학습률
-  weight_decay: 0.0005
-  momentum: 0.937
-  
-  # 데이터 증강
-  augment:
-    hsv_h: 0.015  # 색조 증강
-    hsv_s: 0.7    # 채도 증강
-    hsv_v: 0.4    # 명도 증강
-    degrees: 0.0  # 회전 각도
-    translate: 0.1  # 이동
-    scale: 0.5    # 스케일
-    shear: 0.0    # 전단
-    perspective: 0.0  # 원근
-    flipud: 0.0   # 상하 뒤집기
-    fliplr: 0.5   # 좌우 뒤집기
-    mosaic: 1.0   # 모자이크 증강
-
-# EfficientNet 딥페이크 분류 모델 설정
-deepfake_classifier:
-  model_name: 'efficientnet-b0'  # b0(가장 빠름), b1, b2, b3(권장), b4, b5, b6, b7(가장 정확하지만 느림)
-  epochs: 50                     # 학습 에폭 수 (50-100 권장)
-  batch_size: 32                 # 배치 크기 (GPU 메모리 8GB: 32, 4GB: 16)
-  learning_rate: 0.001           # 학습률 (기본값, 수렴이 안되면 0.0001로 줄이기)
-  weight_decay: 0.0001           # 가중치 감쇠 (과적합 방지)
-  device: 'cuda'                 # 'cuda' 또는 'cpu'
-  data_path: 'data/deepfake_classification'  # ⚠️ 자동 업데이트됨
-  save_dir: 'runs/deepfake_classifier'
-  
-  # 데이터 증강
-  augment: true
-  augment_params:
-    resize: [256, 256]
-    crop_size: 224
-    horizontal_flip: 0.5
-    rotation_degrees: 10
-    color_jitter:
-      brightness: 0.2
-      contrast: 0.2
-      saturation: 0.2
-      hue: 0.1
-  
-  # 옵티마이저 설정
-  optimizer: 'AdamW'
-  scheduler:
-    type: 'ReduceLROnPlateau'
-    mode: 'min'
-    factor: 0.5
-    patience: 5
-    min_lr: 0.00001
-  
-  # 조기 종료
-  early_stopping:
-    patience: 10
-    min_delta: 0.001
-
-# 데이터 설정
 data:
-  # 데이터셋 분할 비율
-  split_ratios:
-    train: 0.7
-    val: 0.2
-    test: 0.1
-  
-  # 이미지 전처리
-  preprocessing:
-    face_size: [224, 224]
-    face_padding: 0.2
-    normalize:
-      mean: [0.485, 0.456, 0.406]
-      std: [0.229, 0.224, 0.225]
-  
-  # 데이터 로더 설정
   dataloader:
     num_workers: 4
     pin_memory: true
     shuffle_train: true
-
-# 학습 모니터링
+  preprocessing:
+    face_padding: 0.2
+    face_size:
+    - 224
+    - 224
+    normalize:
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+  split_ratios:
+    test: 0.1
+    train: 0.7
+    val: 0.2
+deepfake_classifier:
+  augment: true
+  augment_params:
+    color_jitter:
+      brightness: 0.2
+      contrast: 0.2
+      hue: 0.1
+      saturation: 0.2
+    crop_size: 224
+    horizontal_flip: 0.5
+    resize:
+    - 256
+    - 256
+    rotation_degrees: 10
+  batch_size: 32
+  data_path: D:/ajou_deepfake_classfication/data/deepfake_classification
+  device: cpu
+  early_stopping:
+    min_delta: 0.001
+    patience: 10
+  epochs: 50
+  learning_rate: 0.001
+  model_name: efficientnet-b0
+  optimizer: AdamW
+  save_dir: runs/deepfake_classifier
+  scheduler:
+    factor: 0.5
+    min_lr: 1.0e-05
+    mode: min
+    patience: 5
+    type: ReduceLROnPlateau
+  weight_decay: 0.0001
+experiment:
+  benchmark: false
+  description: YOLO + EfficientNet 딥페이크 탐지 시스템
+  deterministic: true
+  name: deepfake_detection_v1
+  random_seed: 42
+  tags:
+  - deepfake
+  - face_detection
+  - classification
+hardware:
+  gpu:
+    cudnn_benchmark: true
+    mixed_precision: true
+  memory:
+    gradient_accumulation_steps: 1
+    max_memory_usage: 0.8
 monitoring:
-  # 체크포인트 저장
   checkpoint:
     save_best: true
     save_last: true
-    save_period: 10  # 에폭 간격
-  
-  # 로깅
+    save_period: 10
   logging:
-    log_interval: 100  # 배치 간격
-    plot_interval: 10  # 에폭 간격
-  
-  # 검증
+    log_interval: 100
+    plot_interval: 10
   validation:
-    val_interval: 1  # 에폭 간격
     save_val_images: true
-
-# 하드웨어 설정
-hardware:
-  # GPU 설정
-  gpu:
-    mixed_precision: true  # AMP 사용
-    cudnn_benchmark: true
-  
-  # 메모리 최적화
-  memory:
-    gradient_accumulation_steps: 1
-    max_memory_usage: 0.8  # GPU 메모리 사용률 제한
-
-# 실험 설정
-experiment:
-  name: 'deepfake_detection_v1'
-  description: 'YOLO + EfficientNet 딥페이크 탐지 시스템'
-  tags: ['deepfake', 'face_detection', 'classification']
-  
-  # 시드 설정
-  random_seed: 42
-  
-  # 재현성
-  deterministic: true
-  benchmark: false
+    val_interval: 1
+yolo:
+  augment:
+    degrees: 0.0
+    fliplr: 0.5
+    flipud: 0.0
+    hsv_h: 0.015
+    hsv_s: 0.7
+    hsv_v: 0.4
+    mosaic: 1.0
+    perspective: 0.0
+    scale: 0.5
+    shear: 0.0
+    translate: 0.1
+  batch_size: 16
+  confidence_threshold: 0.5
+  data_path: D:/ajou_deepfake_classfication/data/face_detection
+  device: cpu
+  epochs: 1
+  imgsz: 640
+  lr0: 0.01
+  model_size: m
+  momentum: 0.937
+  optimizer: AdamW
+  pretrained: true
+  save_dir: runs/face_detection
+  weight_decay: 0.0005
