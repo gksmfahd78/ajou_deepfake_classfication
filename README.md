@@ -1,7 +1,5 @@
 \# 딥페이크 탐지 시스템 (Deepfake Detection System)
 
-아주대 융시공 공모전 준비용입니다.
-
 YOLO와 EfficientNet을 결합한 고성능 딥페이크 탐지 시스템입니다.
 
 ## 🎯 시스템 개요
